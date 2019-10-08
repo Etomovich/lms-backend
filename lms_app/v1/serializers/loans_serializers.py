@@ -23,13 +23,17 @@ class LoansDataModel(object):
             required=False,
             description="The amount of money given to the farmer"
         ),
-        'date_loaned': fields.Integer(
+        'date_loaned': fields.DateTime(
             required=False,
             description="Date farmer was loaned"
         ),
-        'pay_date': fields.String(
+        'pay_date': fields.DateTime(
             required=False,
             description="Day on which the amount is to be paid."
+        ),
+        'loan_info': fields.String(
+            required=False,
+            description="Most recent critical information aout the loan."
         ),
         'interest_rate': fields.Integer(
             required=False,
@@ -40,7 +44,7 @@ class LoansDataModel(object):
             description="Day on which the amount is to be paid."
         ),
     })
-    farmer_payment = api.model('Farmer pay input', {
+    farmer_payment = api.model('Add farmer payment input', {
         'amount_paid': fields.Integer(
             required=True,
             description="The amount of money a farmer paid for the loan"
@@ -49,8 +53,22 @@ class LoansDataModel(object):
             required=True,
             description="Any proof that can verify the payment"
         ),
-        'pay_date': fields.String(
+        'pay_date': fields.DateTime(
             required=True,
+            description="Day on which the amount was paid."
+        )
+    })
+    edit_farmer_payment = api.model('Edit farmer pay input', {
+        'amount_paid': fields.Integer(
+            required=False,
+            description="The amount of money a farmer paid for the loan"
+        ),
+        'payment_info': fields.Integer(
+            required=False,
+            description="Any proof that can verify the payment"
+        ),
+        'pay_date': fields.DateTime(
+            required=False,
             description="Day on which the amount was paid."
         )
     })

@@ -64,3 +64,16 @@ class DatabaseConnect(object):
             "message": message,
             "data": data
         }
+    
+    def update_query(
+        self, cur_table, update_field, update_field_data,
+        check_field, check_field_data
+    ):
+        """Create query to update any field in any table"""
+        query = """
+            UPDATE {} SET {}='{}' WHERE {}='{}'
+        """.format(
+            cur_table, update_field, update_field_data,
+            check_field, check_field_data
+        )
+        return query

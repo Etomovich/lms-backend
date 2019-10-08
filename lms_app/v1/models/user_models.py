@@ -1,7 +1,7 @@
-from datetime import datetime
 from lms_app.db_config.database import DatabaseConnect
 from werkzeug.security import generate_password_hash, check_password_hash
-from itsdangerous import (TimedJSONWebSignatureSerializer as Serializer)
+from itsdangerous import (TimedJSONWebSignatureSerializer as
+                          Serializer, BadSignature, SignatureExpired)
 from instance.config import Config
 
 
@@ -57,9 +57,7 @@ class UserModel(DatabaseConnect):
                 registration_data["last_name"],
                 registration_data["phone_number"],
                 registration_data["national_id"],
-                datetime.strptime(
-                    registration_data["date_joined"], "%d/%m/%y %H:%M"
-                ),
+                registration_data["date_joined"],
                 current_person["user_id"],
             )
             queries = []
@@ -395,6 +393,24 @@ class UserModel(DatabaseConnect):
         """"This method is used to edit a user information. Specific roles
         can edit specific information."""
 
+    def farmer_formatter(self, farmer_item):
+        """Formats the farmer query result to an object"""
+        return {
+            "farmer_id": farmer_item[0],
+            "farmer_info": farmer_item[1],
+            "location": farmer_item[2],
+            "officer_incharge": farmer_item[3],
+            "profile_id": farmer_item[4]
+        }
+
+    def officer_formatter(self, officer_item):
+        """Formats the officer query result to an object"""
+        return {
+            "officer_id": officer_item[0],
+            "officer_info": officer_item[1],
+            "profile_id": officer_item[2]
+        }
+
     def delete_a_user(self, user_id):
         """"This method is used to delete a specific user from the database"""
 
@@ -419,6 +435,7 @@ class UserModel(DatabaseConnect):
             farmer = self.get_a_farmer(return_data["profile_id"])
         if farmer:
             return_data["farmer_id"] = farmer["farmer_id"]
+            return_data["officer_incharge"] = farmer["officer_incharge"]
 
         if (
             ("profile_id" in return_data.keys()) and
@@ -439,5 +456,5 @@ class UserModel(DatabaseConnect):
         s = Serializer(Config.SECRET_KEY, expires_in=21600)
         try:
             return s.loads(str(token))
-        except Exception:
+        except (BadSignature, SignatureExpired):
             return False
