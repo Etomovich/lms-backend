@@ -58,8 +58,10 @@ def create_lms_tables():
             amount_given        NUMERIC(20, 2) NULL DEFAULT 0.0,
             date_loaned         TIMESTAMP WITH TIME ZONE NULL,
             pay_date            TIMESTAMP WITH TIME ZONE NULL,
-            interest_rate       INTEGER NULL,
-            loan_status         VARCHAR(20) NULL,
+            loan_info           VARCHAR(300) NULL,
+            request_times       INTEGER NULL DEFAULT 0,
+            interest_rate       INTEGER NULL DEFAULT 0,
+            loan_status         VARCHAR(20) NULL DEFAULT 'PENDING',
             farmer_id           INTEGER REFERENCES farmers(farmer_id)
                                 ON DELETE CASCADE
         );
@@ -70,7 +72,7 @@ def create_lms_tables():
             payment_id          SERIAL PRIMARY KEY,
             amount_paid         NUMERIC(20, 2) NULL DEFAULT 0.0,
             payment_info        VARCHAR(300) NOT NULL,
-            approved            VARCHAR(10) DEFAULT 'NO',
+            approved            VARCHAR(10) DEFAULT 'PENDING',
             pay_date            TIMESTAMP WITH TIME ZONE NOT NULL,
             loan_id             INTEGER REFERENCES loans(loan_id)
                                 ON DELETE CASCADE,

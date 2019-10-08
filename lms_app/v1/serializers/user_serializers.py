@@ -22,8 +22,8 @@ class UserDataModel(object):
         'role': fields.String(
             required=True, description="user's role"
         ),
-        'date_joined': fields.String(
-            required=True, description="Date joined i.e '21/11/06 16:30'"
+        'date_joined': fields.Date(
+            required=True, description="Date joined"
         ),
         'email': fields.String(
             required=True, description="user's email"
