@@ -1,4 +1,5 @@
 import psycopg2
+from datetime import datetime
 from lms_app.db_config.db_helpers import create_lms_tables
 from lms_app.db_config.db_helpers import remove_lms_tables
 from lms_app.db_config.db_helpers import create_default_admin
@@ -64,3 +65,29 @@ class DatabaseConnect(object):
             "message": message,
             "data": data
         }
+    
+    def update_query(
+        self, cur_table, update_field, update_field_data,
+        check_field, check_field_data
+    ):
+        """Create query to update any field in any table"""
+        query = """
+            UPDATE {} SET {}='{}' WHERE {}='{}'
+        """.format(
+            cur_table, update_field, update_field_data,
+            check_field, check_field_data
+        )
+        return query
+
+    def format_date(self, this_date):
+        """Format date inputs before using them"""
+        date_list = this_date.split(" ")[0:6]
+        formatted = ""
+        for item in date_list:
+            item = " " + item
+            formatted += item
+        formatted = formatted.strip()
+        print("format", formatted)
+        return datetime.strptime(
+            str(formatted), "%a %b %d %Y %H:%M:%S %Z%z"
+        )

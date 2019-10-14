@@ -132,7 +132,7 @@ class GetAllOfficers(Resource):
         user_model = UserModel(config_obj.DATABASE_URL)
         user_data = user_model.get_all_officers()
 
-        token = user_model.decode_token(token)
+        token = user_model.decode_token(str(token))
         if not (token and token["role"] == "CREDIT_MANAGER"):
             pack = {
                 "status": 401,
