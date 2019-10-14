@@ -37,10 +37,10 @@ class LoanModel(UserModel):
         """Formats the loan query result to an object"""
         return {
             "loan_id": loan_item[0],
-            "amount_requested": loan_item[1],
-            "amount_given": loan_item[2],
-            "date_loaned": loan_item[3],
-            "pay_date": loan_item[4],
+            "amount_requested": str(loan_item[1]),
+            "amount_given": str(loan_item[2]),
+            "date_loaned": str(loan_item[3]),
+            "pay_date": str(loan_item[4]),
             "loan_info": loan_item[5],
             "request_times": loan_item[6],
             "interest_rate": loan_item[7],
@@ -80,10 +80,10 @@ class LoanModel(UserModel):
                     amount_requested, farmer_id
                 )
                 VALUES(
-                    '{}', '{}',
+                    {}, {}
                 )
             """.format(
-                amount,
+                float(amount),
                 self.this_user["farmer_id"],
             )
             queries = []
@@ -121,6 +121,23 @@ class LoanModel(UserModel):
                 response_item.append(self.loan_formatter(item))
             return response_item
         return False
+
+    def get_db_loans(self):
+        """This method gets all loans in the database"""
+        if not self.this_user and self.this_user["role"] != "CREDIT_MANAGER":
+            return self.return_data(401, "Current user not set", {})
+
+        query = """SELECT * FROM loans;"""
+        loan_items = self.fetch_all_data(query)
+        response_item = []
+        if loan_items:
+            for item in loan_items:
+                item = self.loan_formatter(item)
+                item["amount_requested"] = str(item["amount_requested"])
+                item["amount_given"] = str(item["amount_given"])
+                response_item.append(item)
+            return self.return_data(200, "SUCCESS", response_item)
+        return self.return_data(404, "Not Found", response_item)
 
     def update_loan_amount(self, loan_id, amount):
         """This method updates the loan amount before"""
@@ -211,7 +228,7 @@ class LoanModel(UserModel):
             farmer_data = self.farmer_formatter(farmer_data)
             owner_info["profile_id"] = farmer_data["profile_id"]
             owner_info["farmer_id"] = this_loan["farmer_id"]
-            owner_info["officer_incharge"] = this_loan["officer_incharge"]
+            owner_info["officer_incharge"] = farmer_data["officer_incharge"]
         farmer_data = None
         if "profile_id" in owner_info.keys():
             farmer_query = """
@@ -240,7 +257,7 @@ class LoanModel(UserModel):
         is_manager = False
         if len(loan_owner) > 0:
             is_incharge = self.is_farmers_agent(
-                self.this_user["username"], loan_owner["usename"]
+                self.this_user["username"], loan_owner["username"]
             )
         if self.this_user["role"] == "CREDIT_MANAGER":
             is_manager = True
@@ -250,7 +267,7 @@ class LoanModel(UserModel):
             ("amount_given" in update_input.keys())
         ):
             query = self.update_query(
-                "loans", "amount_given", update_input["amount_given"],
+                "loans", "amount_given", float(update_input["amount_given"]),
                 "loan_id", loan_id
             )
             q_list.append(query)
@@ -259,7 +276,8 @@ class LoanModel(UserModel):
             ("date_loaned" in update_input.keys())
         ):
             query = self.update_query(
-                "loans", "date_loaned", update_input["date_loaned"],
+                "loans", "date_loaned",
+                self.format_date(update_input["date_loaned"]),
                 "loan_id", loan_id
             )
             q_list.append(query)
@@ -268,7 +286,8 @@ class LoanModel(UserModel):
             ("pay_date" in update_input.keys())
         ):
             query = self.update_query(
-                "loans", "pay_date", update_input["pay_date"],
+                "loans", "pay_date",
+                self.format_date(update_input["pay_date"]),
                 "loan_id", loan_id
             )
             q_list.append(query)
@@ -286,7 +305,7 @@ class LoanModel(UserModel):
             ("interest_rate" in update_input.keys())
         ):
             query = self.update_query(
-                "loans", "interest_rate", update_input["interest_rate"],
+                "loans", "interest_rate", int(update_input["interest_rate"]),
                 "loan_id", loan_id
             )
             q_list.append(query)
@@ -389,10 +408,11 @@ class LoanModel(UserModel):
                     loan_id, farmer_id
                 )
                 VALUES(
-                    '{}', '{}', '{}', '{}'
+                    {}, '{}', '{}', {}, {}
                 )
             """.format(
-                amount, pay_verification, pay_date,
+                float(amount), pay_verification, 
+                self.format_date(pay_date),
                 loan_id, self.this_user["farmer_id"],
             )
             queries = []
@@ -421,7 +441,9 @@ class LoanModel(UserModel):
         reply = []
         if pay_data:
             for item in pay_data:
-                reply.append(self.pay_formatter(item))
+                item = self.pay_formatter(item)
+                item["amount_paid"] = str(item["amount_paid"])
+                reply.append(item)
             return reply
         return pay_data
 
@@ -493,7 +515,7 @@ class LoanModel(UserModel):
         is_manager = False
         if len(loan_owner) > 0:
             is_incharge = self.is_farmers_agent(
-                self.this_user["username"], loan_owner["usename"]
+                self.this_user["username"], loan_owner["username"]
             )
         if self.this_user["role"] == "CREDIT_MANAGER":
             is_manager = True
@@ -508,6 +530,7 @@ class LoanModel(UserModel):
             reply = self.save_data(q_list)
             if isinstance(reply, bool):
                 reply = self.get_a_payment(payment_id)
+                reply["amount_paid"] = str(reply["amount_paid"])
                 return self.return_data(200, "SUCCESS", reply)
             return self.return_data(400, "BAD REQUEST", reply)
         return self.return_data(401, "UNAUTHRIZED", {})
@@ -660,6 +683,7 @@ class LoanModel(UserModel):
         if loan_id:
             valid_user = self.check_access(payment_id)
         if valid_user:
+            this_pay["amount_paid"] = str(this_pay["amount_paid"])
             return self.return_data(200, "SUCCESS", this_pay)    
         return self.return_data(401, "UNAUTHORIZED", {})
 
@@ -681,10 +705,9 @@ class LoanModel(UserModel):
         # Verify user
         valid_user = self.check_access(loan_id)
         the_loan = False
-        if valid_user:
-            the_loan = self.get_payments_per_loan(loan_id)
         if not valid_user:
             return self.return_data(401, "UNAUTHORIZED", {})
+        the_loan = self.get_payments_per_loan(loan_id)
         if the_loan:  
             return self.return_data(200, "SUCCESS", the_loan)
         return self.return_data(404, "NOT FOUND", {})

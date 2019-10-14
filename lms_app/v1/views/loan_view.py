@@ -164,7 +164,7 @@ class PayLoan(Resource):
     def post(self, loan_id):
         """Pay for a loan you owe the company."""
         token = request.headers.get('Authorization')
-        
+
         flask_environment = os.environ.get("BASE_ENVIRONMENT")
         config_obj = config_classes[flask_environment]
         loan_model = LoanModel(config_obj.DATABASE_URL)
@@ -294,13 +294,16 @@ class FarmerEditPayment(Resource):
 class GetFarmerLoanRecords(Resource):
     def get(self, farmer_id):
         """Get a farmers loan records."""
+        user = None
         token = request.headers.get('Authorization')
 
         flask_environment = os.environ.get("BASE_ENVIRONMENT")
         config_obj = config_classes[flask_environment]
         loan_model = LoanModel(config_obj.DATABASE_URL)
-        if token and "username" in token:
-            loan_model.verify_current_user(token["username"])
+        if token:
+            user = loan_model.decode_token(token)
+        if "username" in user:
+            loan_model.verify_current_user(user["username"])
         response_data = loan_model.get_a_farmers_loan_records(farmer_id)
         return make_response(
             response_data, response_data["status"]
@@ -317,6 +320,7 @@ class GetPaymentRecords(Resource):
         flask_environment = os.environ.get("BASE_ENVIRONMENT")
         config_obj = config_classes[flask_environment]
         loan_model = LoanModel(config_obj.DATABASE_URL)
+        token = loan_model.decode_token(token)
         if token and "username" in token:
             loan_model.verify_current_user(token["username"])
         response_data = loan_model.get_payment_records(loan_id)
@@ -334,6 +338,7 @@ class GetLoan(Resource):
         flask_environment = os.environ.get("BASE_ENVIRONMENT")
         config_obj = config_classes[flask_environment]
         loan_model = LoanModel(config_obj.DATABASE_URL)
+        token = loan_model.decode_token(token)
         if token and "username" in token:
             loan_model.verify_current_user(token["username"])
         response_data = loan_model.get_loan_given_load_id(loan_id)
@@ -351,9 +356,30 @@ class GetPayment(Resource):
         flask_environment = os.environ.get("BASE_ENVIRONMENT")
         config_obj = config_classes[flask_environment]
         loan_model = LoanModel(config_obj.DATABASE_URL)
+        token = loan_model.decode_token(token)
         if token and "username" in token:
             loan_model.verify_current_user(token["username"])
         response_data = loan_model.get_payment_given_pay_id(payment_id)
+        return make_response(
+            response_data, response_data["status"]
+        )
+
+
+@loans_api.route("/fetch-all/admin-window")
+class GetAllDatabaseLoans(Resource):
+    def get(self):
+        """Get all loans saved in the database."""
+        user = None
+        token = request.headers.get('Authorization')
+
+        flask_environment = os.environ.get("BASE_ENVIRONMENT")
+        config_obj = config_classes[flask_environment]
+        loan_model = LoanModel(config_obj.DATABASE_URL)
+        if token:
+            user = loan_model.decode_token(token)
+        if "username" in user:
+            loan_model.verify_current_user(user["username"])
+        response_data = loan_model.get_db_loans()
         return make_response(
             response_data, response_data["status"]
         )

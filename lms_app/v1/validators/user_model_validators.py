@@ -13,7 +13,7 @@ class RegisterUserSchema(Schema):
     last_name = fields.String(required=True)
     national_id = fields.Integer(required=True)
     role = fields.String(required=True)
-    date_joined = fields.DateTime(required=True)
+    date_joined = fields.String(required=True)
     email = fields.Email(required=True)
     phone_number = fields.String(required=True)
     password = fields.String(required=True)

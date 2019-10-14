@@ -50,14 +50,16 @@ class UserModel(DatabaseConnect):
                     date_joined, profile_owner
                 )
                 VALUES(
-                    '{}', '{}', '{}', '{}', '{}', '{}'
+                    '{}', '{}', '{}', '{}', '{}', {}
                 )
             """.format(
                 registration_data["first_name"],
                 registration_data["last_name"],
                 registration_data["phone_number"],
                 registration_data["national_id"],
-                registration_data["date_joined"],
+                self.format_date(
+                    registration_data["date_joined"]
+                ),
                 current_person["user_id"],
             )
             queries = []
@@ -74,7 +76,7 @@ class UserModel(DatabaseConnect):
     def create_officer(self, profile_info, registration_data):
         """This method is used for loan officer registration"""
         officer_query = """
-            INSERT INTO loan_officers( profile_id ) VALUES ('{}')
+            INSERT INTO loan_officers( profile_id ) VALUES ({})
         """.format(
             profile_info["profile_id"]
         )
@@ -86,7 +88,7 @@ class UserModel(DatabaseConnect):
         current_officer = False
         if not isinstance(create_officer_check, dict):
             loan_fetch_query = """
-                SELECT * FROM loan_officers WHERE profile_id='{}'
+                SELECT * FROM loan_officers WHERE profile_id={}
             """.format(profile_info["profile_id"])
             current_officer = self.fetch_single_data(loan_fetch_query)
             payload["profile_id"] = profile_info["profile_id"]
@@ -116,7 +118,7 @@ class UserModel(DatabaseConnect):
             farmer_query = """
                 INSERT INTO farmers(
                     profile_id, officer_incharge
-                ) VALUES ('{}', {})
+                ) VALUES ({}, {})
             """.format(
                 profile_info["profile_id"], self.this_user["officer_id"]
             )
@@ -131,7 +133,7 @@ class UserModel(DatabaseConnect):
             farmer_query = """
                 INSERT INTO farmers(
                     profile_id, officer_incharge
-                ) VALUES ('{}', {})
+                ) VALUES ({}, {})
             """.format(
                 profile_info["profile_id"], officer_profile["profile_id"]
             )
@@ -142,7 +144,7 @@ class UserModel(DatabaseConnect):
         current_farmer = False
         if not isinstance(farmer_created_check, dict):
             farmer_fetch_query = """
-                SELECT * FROM farmers WHERE profile_id='{}'
+                SELECT * FROM farmers WHERE profile_id={}
             """.format(profile_info["profile_id"])
             current_farmer = self.fetch_single_data(farmer_fetch_query)
             payload["profile_id"] = profile_info["profile_id"]
@@ -151,12 +153,13 @@ class UserModel(DatabaseConnect):
 
         save_info = {}
         save_location = {}
-        error_reply = {}
+        location_error = {}
+        info_error = {}
         if ((payload) and ("farmer_info" in registration_data)):
             update_query = """
                 UPDATE farmers SET farmer_info='{}'
-                WHERE farmer_id='{}'""".format(
-                    registration_data["officer_info"],
+                WHERE farmer_id={}""".format(
+                    registration_data["farmer_info"],
                     payload["farmer_id"]
                 )
             queries = []
@@ -175,11 +178,13 @@ class UserModel(DatabaseConnect):
             save_location = self.save_data(queries)
 
         if isinstance(save_info, dict):
-            error_reply["farmer_info_error"] = save_info
+            info_error["farmer_info_error"] = save_info
         if isinstance(save_location, dict):
-            error_reply["farmer_location_error"] = save_location
-        if not error_reply:
-            return self.return_data(400, "BAD_REQUEST", error_reply)
+            location_error["farmer_location_error"] = save_location
+        if len(location_error) > 0:
+            return self.return_data(400, "BAD_REQUEST", location_error)
+        if len(info_error) > 0:
+            return self.return_data(400, "BAD_REQUEST", location_error)
         return self.return_data(201, "CREATED", payload)
 
     def register_user(self, registration_data):
@@ -285,12 +290,42 @@ class UserModel(DatabaseConnect):
     def check_duplicate(self, key, value):
         """"This method is used to check duplicate values."""
         user_fetch_query = """
-            SELECT * FROM users WHERE '{}'='{};'
+            SELECT * FROM users WHERE '{}'='{}';
         """.format(key, value)
         current_profile = self.fetch_single_data(user_fetch_query)
         if current_profile:
             return True
         return False
+
+    def retrieve_user(self, profile_id):
+        """"This method is used to get a user given profile_id"""
+        user_data = {}
+        profile_data = {}
+        response = {}
+        user_fetch_query = """
+            SELECT * FROM profiles WHERE profile_id={};
+        """.format(profile_id)
+        current_profile = self.fetch_single_data(user_fetch_query)
+        if not current_profile:
+            return False
+        profile_data["profile_id"] = current_profile[0]
+        profile_data["first_name"] = current_profile[1]
+        profile_data["last_name"] = current_profile[2]
+        profile_data["phone_number"] = current_profile[3]
+        profile_data["national_id"] = current_profile[4]
+        profile_data["date_joined"] = current_profile[5]
+        user_fetch_query = """
+            SELECT * FROM users WHERE user_id={};
+        """.format(current_profile[6])
+        current_profile = self.fetch_single_data(user_fetch_query)
+        user_data["user_id"] = current_profile[0]
+        user_data["username"] = current_profile[1]
+        user_data["email"] = current_profile[2]
+        user_data["role"] = current_profile[3]
+        user_data["account_status"] = current_profile[4]
+        response["user_data"] = user_data
+        response["profile_data"] = profile_data
+        return response
 
     def get_all_officers(self):
         """This method is used to get all agents"""
@@ -300,18 +335,19 @@ class UserModel(DatabaseConnect):
         current_profiles = self.fetch_all_data(user_fetch_query)
         profile_list = []
         for item in current_profiles:
+            response = self.retrieve_user(item[2])
             officer_object = {}
             officer_object["officer_id"] = item[0]
             officer_object["officer_info"] = item[1]
-            officer_object["profile_id"] = item[2]
-            profile_list.append(officer_object)
+            response["officer_data"] = officer_object
+            profile_list.append(response)
         if len(profile_list) > 0:
             return profile_list
         return False
 
     def get_all_farmers_for_officer(self, username):
         """This method is used to get all farmers per officer"""
-        user = self.verify_current_user(username)
+        user = self.check_user_in_system(username)
         if not (user):
             return self.return_data(
                 400, "Invalid Username", {}
@@ -328,7 +364,7 @@ class UserModel(DatabaseConnect):
             (self.this_user["role"] == "CREDIT_MANAGER") or
             (
                 (self.this_user["role"] == "LOAN_OFFICER") and
-                (self.this_user["user_id"] == user["userid"])
+                (self.this_user["user_id"] == user["user_id"])
             )
         ):
             farmers_fetch_query = """
@@ -338,13 +374,14 @@ class UserModel(DatabaseConnect):
             current_profiles = self.fetch_all_data(farmers_fetch_query)
             profile_list = []
             for item in current_profiles:
+                response = self.retrieve_user(item[4])
                 farmer_object = {}
                 farmer_object["farmer_id"] = item[0]
                 farmer_object["farmer_info"] = item[1]
                 farmer_object["location"] = item[2]
                 farmer_object["officer_incharge"] = item[3]
-                farmer_object["profile_id"] = item[4]
-                profile_list.append(farmer_object)
+                response["farmer_data"] = farmer_object
+                profile_list.append(response)
             if len(profile_list) > 0:
                 return self.return_data(
                     200, "SUCCESS", profile_list
@@ -356,6 +393,15 @@ class UserModel(DatabaseConnect):
         return self.return_data(
             401, "UNAUTHORIZED", {}
         )
+    
+    def check_user_in_system(self, username):
+        """Check is user is the system"""
+        current_user = self.this_user
+        new_user = self.verify_current_user(username)
+        self.this_user = current_user
+        if new_user:
+            return new_user
+        return False
         
     def get_a_farmer(self, profile_id):
         """"This method is used to get a farmer with the profile_id given.
@@ -455,6 +501,6 @@ class UserModel(DatabaseConnect):
         """This method is used to decode the given token"""
         s = Serializer(Config.SECRET_KEY, expires_in=21600)
         try:
-            return s.loads(str(token))
+            return s.loads(token)
         except (BadSignature, SignatureExpired):
             return False

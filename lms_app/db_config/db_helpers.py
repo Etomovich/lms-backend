@@ -11,7 +11,7 @@ def create_lms_tables():
             user_id               SERIAL PRIMARY KEY,
             username              VARCHAR(50)  UNIQUE NOT NULL,
             email                 VARCHAR(50)  UNIQUE NOT NULL,
-            role                  VARCHAR(20)  NOT NULL,
+            role                  VARCHAR(20)  NULL DEFAULT 'LOAN_OFFICER',
             account_status        VARCHAR(50)  DEFAULT 'ACTIVE',
             password              VARCHAR(200) NOT NULL
         );
@@ -59,7 +59,7 @@ def create_lms_tables():
             date_loaned         TIMESTAMP WITH TIME ZONE NULL,
             pay_date            TIMESTAMP WITH TIME ZONE NULL,
             loan_info           VARCHAR(300) NULL,
-            request_times       INTEGER NULL DEFAULT 0,
+            request_times       INTEGER NULL DEFAULT 1,
             interest_rate       INTEGER NULL DEFAULT 0,
             loan_status         VARCHAR(20) NULL DEFAULT 'PENDING',
             farmer_id           INTEGER REFERENCES farmers(farmer_id)
